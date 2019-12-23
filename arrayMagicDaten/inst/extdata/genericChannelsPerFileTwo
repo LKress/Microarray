@@ -1,0 +1,5 @@
+files	name	channel
+example2_Cy3.txt	example1	green
+example2_Cy5.txt	example1	red
+example2_Cy3.txt	example2	green
+example2_Cy5.txt	example2	red

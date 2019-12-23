@@ -1,0 +1,52 @@
+
+1. Download and install a recent R version from http://www.r-project.org
+
+2. Start R and execute on the R command line:
+
+## (lines beginning with ## contain comments only)
+
+##
+## download Bioconductor installation script
+##
+
+source("http://www.bioconductor.org/biocLite.R")
+
+##
+## download and install Bioconductor packages 
+##
+
+biocLite()
+
+##
+## download and install arrayMagic 
+##
+
+biocLite(c("arrayMagic"))
+
+## or alternatively 
+## on Unix via R CMD INSTALL arrayMagic.tar.gz on the command line
+## on Windows via menu item "Packages" -> "Install package(s) from local zip file" 
+##
+## load package
+##
+
+library(arrayMagic)
+
+##
+## start your analysis after reading the vignette via
+##
+
+setwd("myWorkingDirectoryWhichContainsMyScript")
+source("yourRScript.R")
+
+##
+## start general and package help pages in browser via
+##
+
+help.start()
+
+##
+## or open all loaded package vignettes via
+##
+
+openVignette()

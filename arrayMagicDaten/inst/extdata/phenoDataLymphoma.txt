@@ -1,0 +1,9 @@
+fileName	sampleid	tumortype	sex	slideNumber
+lc7b047rex.DAT	CLL-13	CLL	m	1
+lc7b048rex.DAT	CLL-13	CLL	m	2
+lc7b069rex.DAT	CLL-52	CLL	f	3
+lc7b070rex.DAT	CLL-39	CLL	f	4
+lc7b019rex.DAT	DLCL-0032	DLCL	f	5
+lc7b056rex.DAT	DLCL-0024	DLCL	m	6
+lc7b057rex.DAT	DLCL-0029	DLCL	m	7
+lc7b058rex.DAT	DLCL-0023	DLCL	NA	8

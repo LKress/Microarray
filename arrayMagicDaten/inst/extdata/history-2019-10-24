@@ -1,0 +1,87 @@
+update.packages(checkBuilt = TRUE, ask = FALSE)
+1 +2
+0:12
+dpois(x = 0:12, lambda = 5)
+barplot(dpois(x = 0:12, lambda = 5), names.arg = 0:12, col = "green")
+barplot(dpois(x = 0:12, lambda = 5), names.arg = 0:12, col = "green")
+help(log)
+example(log)
+history
+history()
+prozent <- c(0, 5, 10, 15, 20, 25)
+anzahl <- c(1,5,6,30,55,139)
+plot(prozent, anzahl, type="b", col="red", xlab="Naehrloesung [Prozent]", ylab="Bakterien", ylim=c(0,400))
+lines(prozent, 401:406, col="green")
+points(prozent, 301:306, col="blue")
+getwd()
+setwd("./Documents/Studium/MICR")
+getwd()
+legend(3, 100, c("plot", "lines", "points"), col("red", "green", "blue"), lty=c(1,1,1))
+text(15,200, "Das ist Text!")
+points(prozent, 301:306, col="blue")
+legend(3, 100, c("plot", "lines", "points"), col=c("red", "green", "blue"), lty=c(1,1,1))
+legend(3, 200, c("plot", "lines", "points"), col=c("red", "green", "blue"), lty=c(1,1,1))
+legend(3, 200, c("plot", "lines", "points"), col = c("red", "green", "blue"), lty=c(1,1,1))
+text(15,200, "Das ist Text!")
+x = runif(100)
+y = runif(100)
+plot(x,y)
+hist(x)
+hist(y)
+hist(y, breaks=100)
+x
+y
+u = sort(x)
+v = sort(y)
+plot(u,v)
+lm0 = lm( v ~ u)
+abline(lm0)
+summary(lm0)
+clear()
+clear
+coer(lm0)
+coef(lm0)
+history()
+coef(lm0)[1]
+coef(lm0)[2]
+z = coef(lm0)[1]+coef(lm0)[2]*u
+points(z,v, vol="green")
+points(z,v, col="green")
+lm1 = l (v ~z)
+abline(lm1, col="green")
+lm1 = lm(v ~z)
+abline(lm1, col="green")
+getwd()
+dir()
+mydir=getwd()
+setwd("arrayMagic/inst/extdata")
+getwd()
+dir()
+x = read.delim("lc7b047rex.DAT")
+dim(x)
+x[1:6,]
+x[1,]
+x$CH1I
+hist(x$CH1I)
+hist(x$CH1I, breaks=100)
+hist(log2(x$CH1I), breaks=100)
+max(x$CH1I)
+min(x$CH1I)
+hist(x$CH1B)
+hist(x$CH1B, breaks=100)
+max(x$CH1B)
+min(x$CH1B)
+hist(log2(x$CH1B), breaks=100)
+c1 = x$CH1I - x$CH1B
+hist(c1, breaks=100)
+hist(log2(c1), breaks=100)
+min(c1)
+# da fehlermeldung angezeigt
+history()
+c1 = replace(c1, c1<=0, 1)
+# daher werte ersetzen
+c1[c1<1]=1
+# kuerzer
+c2 = x$CH2I - x$CH2B
+c2[c2<1]=1
+savehistory(file = "history-2019-10-24")

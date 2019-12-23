@@ -1,0 +1,7 @@
+files	name	channel	sample
+genericSlideOne	one	green	reference
+genericSlideOne	one	red	sampleOne
+genericSlideTwo	two	green	reference
+genericSlideTwo	two	red	sampleTwo
+genericSlideThree	three	green	reference
+genericSlideThree	three	red	sampleThree

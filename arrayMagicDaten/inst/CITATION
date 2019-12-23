@@ -1,0 +1,27 @@
+citHeader("To cite arrayMagic in publications use:")
+
+citEntry(entry = "article",
+         title = paste("arrayMagic: two-colour cDNA ",
+                       "microarray quality control and preprocessing",
+	               sep=""),
+         author = personList(person(last="Buness", first="A."),
+                             person(last="Huber", first="W."),
+	                     person(last="Steiner", first="K."),
+	                     person(last="Sueltmann", first="H."),
+	                     person(last="Poustka", first="A.")),
+	 journal = "Bioinformatics",
+         year = "September 28, 2004",
+         note = "Bioinformatics Advance Access published on September 28, 2004",	
+         volume = "doi:10.1093/bioinformatics/bti052",
+         url = "http://www.dkfz-heidelberg.de/abt0840/home/buness/WWW/Software/arrayMagic/",
+         textVersion = 
+                        paste("Andreas Buness, Wolfgang Huber, Klaus Steiner, Holger Sueltmann, and Annemarie Poustka", 
+                        "arrayMagic: two-colour cDNA microarray quality control and preprocessing",
+                        "Bioinformatics Advance Access published on September 28, 2004",
+                        "doi:10.1093/bioinformatics/bti052",
+                        sep=". ")
+         )
+
+citFooter("See also", sQuote("citation()"),
+	  "and ",sQuote("citation(\"pkgname\")"),
+          "for citing R and R packages in general.")

@@ -1,0 +1,861 @@
+
+%the following has to be kept in comments !!
+%\VignetteIndexEntry{arrayMagic: two-colour DNA array quality control and preprocessing}
+%\VignetteKeywords{quality control, two colour microarray data, normalisation}
+%\VignettePackage{arrayMagic}
+%% problems with the following
+% \ VignetteDepends{Biobase, vsn, limma, genefilter} 
+
+% possibly use tempdir() instead of
+% the default savePath, i.e. ''.''
+% (at this point not very important)
+
+% notes on further improvement
+% 'pastel' colours red and green instead of darkred and darkgreen ?! (and blue)
+
+\documentclass[a4paper, 12pt]{article}
+
+%\usepackage{times}
+\usepackage{a4wide}
+
+\title{arrayMagic: two-colour DNA array quality control and preprocessing}
+\author{Andreas Buness}
+
+
+\newcommand{\Rfunction}[1]{{\texttt{#1}}}
+\newcommand{\Robject}[1]{{\texttt{#1}}}
+\newcommand{\Rpackage}[1]{{\textit{#1}}}
+\newcommand{\Rmethod}[1]{{\texttt{#1}}}
+\newcommand{\Rfunarg}[1]{{\texttt{#1}}}
+\newcommand{\Rclass}[1]{{\textit{#1}}}
+
+\setcounter{secnumdepth}{0}
+
+\begin{document}
+
+% should avoid additional generation of
+% encapsulated postscript graphics which
+% even may have side effects if the code
+% contains lines like this: i <- i + 1
+\SweaveOpts{eps=false}
+
+\maketitle
+\tableofcontents
+
+
+%% Wolfgang: 
+%% www.bioconductor.org/develPage/guidelines/programming/performance-issues.pdf%%
+%% has to be placed behind \maketitle and \tableofcontents ??
+%% eval=FALSE section are excecuted in a second run
+%% and will be blocked with the following statement
+%% BUT this might be desired for testing of all code presented !!
+<<noexectwice,eval=FALSE,echo=FALSE,results=hide>>=
+if( length(grep(
+      "/home/buness/bunessFileserver/R/Rpacks/arrayMagic", getwd())) > 0 |
+   length(grep(
+      "/home/buness/R/Rpacks/arrayMagic", getwd())) > 0                   ){
+  ## process a second time 
+}else{
+  q(save="no") 
+}
+@
+
+
+% change the line width in R and
+% possibly also change the prompt
+% via 
+% options(prompt="MyR>")
+%
+<<setup,echo=FALSE,results=hide>>= 
+  options(width=70)
+@
+
+
+\section{Abstract}
+
+This document explains an efficient and
+automated way to load data from two colour microarray 
+image quantification result files into R and Bioconductor. 
+The data are normalised and several quality diagnostic plots are
+generated on the fly. 
+
+%% \section{Workflow Overview}
+
+%% The workflow can be summarized as follows:
+
+%% \begin{enumerate}
+%%   \item create and load description of the experiment
+%%   \item read image quantification result files
+%%   \item normalisation of the data
+%%   \item quality diagnostics and visualisation
+%%   \item export of the data
+%%   \item follow-up analysis
+%% \end{enumerate}
+
+
+\section{Preliminaries}  To go through this document, 
+  you need to have installed R, 
+  the Bioconductor libraries
+  \Rpackage{Biobase, limma}, \Rpackage{vsn} and 
+  \Rpackage{arrayMagic}, which contains part 
+  of the lymphoma data set which is used as example
+  (cf. http://llmpp.nih.gov/lymphoma/).
+<<libraries,echo=TRUE,results=hide>>= 
+  library(Biobase)
+  library(vsn)
+  library(limma)
+  library(genefilter)
+  library(arrayMagic)
+@
+
+
+\section{Workflow}
+
+%%%%%%%%%%%
+
+\subsection{Create and load description of the experiment}
+  The starting point is a description file which comprises the experiment. 
+  The description file must contain the file names of all
+  image analysis quantification results and should contain all other 
+  analysis relevant information. For the example data set 
+  such a tab-deliminated file is provided as shown below:
+
+
+<<descriptionFileAccessOnly,echo=FALSE,results=hide>>=
+packageDirectory <- system.file(package="arrayMagic")
+loadPath <- file.path( packageDirectory, "extdata" )
+fileName <-"phenoDataLymphoma.txt"
+@ 
+<<showDescriptionFile,echo=FALSE>>=
+read.delim( file.path(loadPath, fileName) )
+@
+ 
+  Relevant information may be as various as
+  probe origin, hybridisation day, slide charge,
+  tumour type etc. Each line of the description
+  file  has to correspond to either a single 
+  hybridisation or a single channel of one hybridisation
+  depending on the requirements of the experimental design
+  (cf. the argument method \Rfunarg{channelColumn} of
+   the method \Rmethod{readIntensities}).
+
+  The example description file as well as the image quantification
+  result files are accessible on your system. The
+  access route is determined as follows. 
+  
+<<descriptionFile,echo=TRUE>>=
+packageDirectory <- system.file(package="arrayMagic")
+loadPath <- file.path( packageDirectory, "extdata" )
+fileName <-"phenoDataLymphoma.txt"
+@ 
+
+  The description is read and stored in a \Rclass{data.frame}
+   named \Robject{description}:
+ 
+<<readDescriptionFile,echo=TRUE,results=hide>>=  
+description <- readpDataSlides(fileName, loadPath=loadPath)
+@ 
+
+%%%%%%%%%
+
+\subsection{Reading image quantification result files}
+
+The \Rfunarg{fileNameColumn} of your experiment description contains
+the file names of the image quantification result files. All raw data are
+read in and stored in an instance 
+of the class \Rclass{arrayData}
+named \Robject{aD}.
+
+<<readIntensities,echo=TRUE,results=hide>>=  
+aD <- readIntensities(description, fileNameColumn="fileName", 
+                      slideNameColumn="slideNumber", 
+                      loadPath=loadPath, type="ScanAlyze")
+@ 
+
+
+There is a generic way to deal with different types of 
+image quantification result apart from predefined types 
+like 'ScanAlyze' and 'GenePix' (cf. the arguments 
+\Rfunarg{generic} and \Rfunarg{genericOneFilePerChannel}
+of \Rmethod{readIntensities}). 
+For 'ScanAlyze' type files the following lines do the same job.
+
+<<readIntensitiesLong,echo=TRUE,eval=FALSE,results=hide>>=  
+dataColumns <-  c("CH1I", "CH1B", "CH2I", "CH2B")
+names(dataColumns) <- c("greenForeground","greenBackground","redForeground","redBackground")
+spotAnnoColumns <- c( "HEADER", "SPOT", "GRID", "ROW", "COL" )
+skip <- 0                  ## number of lines to be skipped
+removePatterns <- c("^REMARK") ## all lines starting with REMARK are discarded
+aD <- readIntensities(description, fileNameColumn="fileName",
+                      slideNameColumn="slideNumber", loadPath=loadPath, 
+                      type="generic", spotAnnoColumns=spotAnnoColumns, 
+                      dataColumns=dataColumns, removePatterns=removePatterns,
+                      skip=skip)
+@
+
+Some image quantification result files require to change the
+\Rfunarg{quote} argument to succeed in reading of the files; 
+as first alternative choice you may set 
+\Rfunarg{quote="$\backslash$""}.
+
+
+%%%%%%%%%%%
+
+\subsection{Normalisation of the data}
+
+In general dye, slide and hybridisation effects besides others
+make a calibration or normalisation step of the data inevitable.
+Moreover, for quality assessment not only the raw data, but 
+also the normalised ones have to be considered. Difficulties
+in normalisation may indicate low quality hybridisations.
+The method \Rfunction{normalise} offers a flexible way to normalise
+your data with 'loess', 'vsn' or  'quantile' type normalisations.
+Channels, groups of hybridisations and subsets of spots,
+e.g. by grid or print-tip, can be normalised separately,
+Options should be used carefully and generally do
+require justification. Accordingly, background
+subtraction may not be applied in the first
+instance.
+
+<<normalise,echo=TRUE,results=hide>>=  
+eSRG <- normalise(aD, subtractBackground=TRUE, method="vsn", spotIdentifier="SPOT") 
+@ 
+
+The method \Rfunction{normalise} returns an object
+of class \Rclass{exprSetRG} which contains the normalised
+data of both channels. Details on the class are
+given below. The experiment description information
+has been passed on to the object.
+Unique identifiers which have been
+supplied with the raw data image quantification result 
+files in the column 'SPOT' have been added as 'gene'-names 
+to the object. Here, the given unique identifiers correspond 
+to a consecutive numbering. The annotation 
+information can be obtained as follows.
+
+<<objectAccess,echo=TRUE>>=  
+pDataSlide(eSRG)
+spotGeneNames <- geneNames(eSRG) 
+@ 
+
+
+
+%%%%%%%%%%%
+\subsection{Quality diagnostics and visualisation}
+
+Several quality and hybridisation characteristics 
+are calculated with the help of the function 
+\Rfunction{qualityParameters}.
+All results are stored in a list object.
+The quality scores given per microarray 
+can be saved in a tab-deliminated
+file if the argument \Rfunarg{resultFileName} is
+supplied. Details on all quality measures
+can be found on the help page or in the manual.
+
+<<qualityParameters,echo=TRUE>>=  
+qPL <- qualityParameters(arrayDataObject = aD, 
+                        exprSetRGObject = eSRG,
+                        spotIdentifier= "SPOT",
+                        slideNameColumn="slideNumber",
+                        resultFileName="qualityScores.txt")
+@ 
+
+These quality characteristics are utilised by the
+function \Rfunction{qualityDiagnostics} which automatically
+generates several diagnostic plots. Examples of these
+plots are shown in the Figures
+\ref{distributionRaw}, \ref{distributionRawLogRatios}
+and
+\ref{slideDistances}.
+%and \ref{quality}.
+
+<<qualityDiagnostics,echo=TRUE,fig=FALSE,results=hide>>=  
+qualityDiagnostics(arrayDataObject = aD,
+                   exprSetRGObject = eSRG, 
+                   qualityParameters = qPL, 
+                   plotOutput="pdf")
+@ 
+
+
+\begin{figure}[htb]
+\begin{center}  
+  \includegraphics[width=0.4\textwidth]{distributionOfRawDataChannelWise.pdf}
+  \includegraphics[width=0.4\textwidth]{distributionOfNormalisedData.pdf}
+  \caption{ \label{distributionRaw} 
+    The plot on the left hand side
+    characterises the distribution of the raw intensity values 
+    and on the right
+    hand side of the normalised  
+    intensity values for each channel green and red
+    of all hybridisations.
+    Each box characterizes the median and range of 50\% of the data,
+    i.e. the 25, 50 and 75 percent quantiles of the data.
+  }
+ \end{center}
+\end{figure}
+
+
+\begin{figure}[htb]
+\begin{center}  
+ \includegraphics[width=0.4\textwidth]{distributionOfRawDataLogRatio.pdf}
+ \includegraphics[width=0.4\textwidth]{distributionOfNormalisedDataLogRatio.pdf}
+  \caption{ \label{distributionRawLogRatios} 
+    The plot on the left hand side
+    characterises the distribution of the log-ratios 
+    of the non-normalised and on the right
+    hand side of the normalised data. 
+    Each box characterizes the median and range of 50\% of the data,
+    i.e. the 25, 50 and 75 percent quantiles of the data.
+  }
+ \end{center}
+\end{figure}
+
+
+\begin{figure}[htb]
+\begin{center}  
+  %\includegraphics[width=\textwidth,keepaspectratio=true]{slideDistances.pdf}
+  \includegraphics[width=0.5\textwidth]{slideDistances.pdf}
+  \caption{ \label{slideDistances} 
+    (Dis)similarities between all pairs of hybridisations.
+    This may unveil potential technical artifacts 
+    like batch effects. Such global view on the data does not
+    allow to separate technical and biological variation.
+    Here, the blue and yellow 'blocks' 
+    characterize the two different tumour types
+    'CLL' and 'DLCL'. An ANOVA approach 
+    explicitly addressing known technical 
+    and biological variation, followed by a subsequent 
+    correlation analysis of the residuals 
+    may provide further insight into the data.
+    % Wolfgang: e.g. via heatmap
+  }
+ \end{center}
+\end{figure}
+
+
+%% \begin{figure}[htb]
+%% \begin{center}  
+%%  \includegraphics[width=\textwidth]{visualiseQualityParametersOutput.pdf}
+%%   \caption{ \label{quality} 
+%%       }
+%%  \end{center}
+%% \end{figure}
+
+
+Spatial inhomogeneities and scratches 
+can be detected by visual inspection
+of the hybridisations. The function
+\Rfunction{visualiseHybridisations} re-generates
+a two dimensional representation of
+the raw or normalised data. The
+output of the following code is shown in
+Figure \ref{visualisedData}.
+
+%% for faster processing:
+%% possibly use eval=FALSE and store the plots beforhand
+<<visualiseHybridisations,echo=TRUE,eval=TRUE,fig=FALSE,results=hide>>=  
+mappingColumns <- list(Block = "GRID", Column = "COL", Row = "ROW")
+visualiseHybridisations(arrayDataObject = aD[,c(2,6)],
+                        slideNameColumn = "slideNumber",
+                        mappingColumns = mappingColumns)
+visualiseHybridisations(arrayDataObject = aD[,6],
+                        exprSetRGObject = slideSubset( eSRG, j = 6 ),
+                        type= "normalised",
+                        slideNameColumn = "slideNumber",
+                        mappingColumns = mappingColumns)
+@ 
+
+
+\begin{figure}[htb]
+\begin{center}  
+ \includegraphics[width=\textwidth]{hybridisation_raw_2.pdf}
+ \includegraphics[width=\textwidth]{hybridisation_raw_6.pdf}
+ \includegraphics[width=\textwidth]{hybridisation_normalised_6.pdf}
+  \caption{ \label{visualisedData} 
+    \textit{Top:} 
+    visualisation of the raw data of the second hybridisation.
+    The foreground and background of the red and green channel
+    is shown.
+    \textit{Middle:} the raw data and
+    \textit{bottom:} normalised data of the sixth hybridisation.
+  }
+ \end{center}
+\end{figure}
+
+
+Additional graphical checks can be implemented by
+means of the R and Bioconductor environment. 
+
+A simple scatterplot is easily generated
+as shown below and on the left in Figure 
+\ref{scatterplots}.
+The spots of the first eight subgrids on the
+microarray are coloured in red, all others
+in black. The average intensity against
+the log ratio is shown on the right of
+Figure \ref{scatterplots}.
+
+
+<<additionalVisualInspectionScatterplot,fig=FALSE,echo=TRUE>>=
+green <- exprs(getExprSetGreen(eSRG))
+red <- exprs(getExprSetRed(eSRG))
+
+grid <- getSpotAttr(aD)[["GRID"]]
+colour <- c("black", "red")[ as.integer(grid %in% 1:8) + 1]
+
+par(mfrow=c(1,2))
+
+plot(green[, 5], red[, 5], pch=".", col=colour)
+plot(x=rowMeans(green[, 5, drop=FALSE], red[, 5, drop=FALSE]), 
+     y=green[, 5]-red[, 5], pch=".", xlab="A", ylab="M", col=colour)
+@
+
+<<additionalVisualInspectionScatterplotII,fig=FALSE,echo=FALSE,results=hide>>=
+pdf(width=7, height=3.5, file="scatterplots.pdf")
+
+par(mfrow=c(1,2))
+
+plot(green[, 5], red[, 5], pch=".", col=colour)
+plot(x=rowMeans(green[, 5, drop=FALSE], red[, 5, drop=FALSE]), 
+     y=green[, 5]-red[, 5], pch=".", xlab="A", ylab="M", col=colour)
+
+dev.off()
+@
+
+
+\begin{figure}[htb]
+\begin{center}  
+  \includegraphics[height=0.4\textwidth]{scatterplots.pdf}
+  \caption{ \label{scatterplots} 
+    The green versus the red channel of the fifth hybridisation
+    is shown on the left hand side. A different, but similar
+    view on the same hybridisation is shown on the right hand
+    side, i.e. the average intensity versus its log ratio.
+    All spots belonging to the first eight subgrids are 
+    coloured in red instead of black.
+  }
+ \end{center}
+\end{figure}
+
+
+
+
+The esitmated density of the log ratios for
+each of the sixteen subgrids of the first
+hybridisation is shown on the left in Figure
+\ref{subgridDensities}.
+Similarly, the estimated density of the
+first subgrid for each of the eight 
+hybridisations is shown on the right.
+The within and between hybridisation
+variability appears to be comparable.
+
+%% The frequently shown relationship between the average
+%% intensity and the log ratio is generated for
+%% the fifth hybridisation as follows:
+%% <<MAplot,echo=TRUE>>=
+%% green <- exprs(getExprSetGreen(eSRG))[,5]
+%% red <- exprs(getExprSetRed(eSRG))[,5]
+%% plot(x=(red+green), y=(red-green), pch=".") 
+%% @ 
+
+%% 1 array: 16 grids containing 576 spots
+%% 
+%% 16 grids of 8 slides of 7 values returned by density 
+%% x <- lapply( unique(grid), function(g) apply( lR[grid==g,], 2, density))
+
+%%   more intuitive 
+%% dxHybOne <- sapply( split( lR[,1], grid), function(x) density(x)$x)
+%% dyHybOne <- sapply( split( lR[,1], grid), function(x) density(x)$y)
+%%   and more efficient code for the subgrids of the first hybridisation
+%% dHybOne <- lapply(split( lR[,1], grid), function(x) density(x) )
+%% dxHybOne <- cbind( sapply( dHybOne, function(x) x$x))
+%% dyHybOne <- cbind( sapply( dHybOne, function(x) x$y))
+
+<<additionalVisualInspectionDensity,fig=FALSE,echo=TRUE>>=
+lR <- exprs(getExprSetLogRatio(eSRG))
+
+par(mfrow=c(1,2))
+
+dHybOne <- lapply(split( lR[,1], grid), function(x) density(x) )
+dxHybOne <- cbind( sapply( dHybOne, function(x) x$x))
+dyHybOne <- cbind( sapply( dHybOne, function(x) x$y))
+matplot(dxHybOne, dyHybOne, pch=".", ylim=c(0,1))
+
+dxGridOne <- apply( lR[grid==1,], 2, function(x) density(x)$x)
+dyGridOne <- apply( lR[grid==1,], 2, function(x) density(x)$y)
+matplot(dxGridOne, dyGridOne, pch=".", ylim=c(0,1))
+@ 
+
+<<additionalVisualInspectionDensityII,fig=FALSE,echo=FALSE,results=hide>>=
+pdf( width=7, height=3.5, file="subgridDensities.pdf")
+par(mfrow=c(1,2))
+matplot(dxHybOne, dyHybOne, pch=".", ylim=c(0,1))
+matplot(dxGridOne, dyGridOne, pch=".", ylim=c(0,1))
+dev.off()
+@ 
+
+\begin{figure}[htb]
+\begin{center}  
+  \includegraphics[height=0.4\textwidth]{subgridDensities.pdf}
+  \caption{ \label{subgridDensities} 
+    The graphic on the left hand side
+    characterises the densities of log ratios for
+    each of the sixteen subgrids of the first
+    hybridisation. The estimated density of the
+    first subgrid for each of the eight 
+    hybridisations is shown in the right
+    graphic.
+  }
+ \end{center}
+\end{figure}
+
+
+Following the same lines the distribution
+of the intensities before and after the
+normalisation can be compared  
+separately for each channel. 
+ 
+%% rawGreen <- getIntensities(aD)[,"green",]
+%% green <- exprs(getExprSetGreen(eSRG))
+
+
+%% dens <- function(x){
+%%    xx <- apply( x, 2, function(x) density(x)$x)
+%%    xy <- apply( x, 2, function(x) density(x)$y)
+%%    return(list(x=xx, y=xy))
+%% }
+
+%% densRawGreen <- dens(log(rawGreen))
+%% densGreen     <- dens(green)
+
+%% par(mfrow=c(1,2))
+%% matplot(densRawGreen$x, densRawGreen$y, pch=".")
+%% matplot(densGreen$x, densGreen$y, pch=".")
+
+
+
+
+%% other possible extensions:
+%%
+%% overall equality of the distributions could be
+%% checked via quantile - quantile plots 
+%%
+%% possibly check for the modality of the distributions,
+%% e.g. two modal background 
+%%
+
+
+
+%%%%%%%%%%%%%
+
+\subsection{Export of the data}
+
+The \Rfunction{writeToFile} offers a convenient way
+to export processed data to a well-formated 
+tab-deliminated text file for any kind of 
+subsequent analysis in other tools. The
+\Rfunarg{channels} allows to select 
+between the two channels and the log-ratios,
+as well as among raw and processed data. 
+
+%% possibly use eval=FALSE, but no file will be included in the package
+<<exportData,echo=TRUE>>=
+writeToFile(arrayDataObject = aD, 
+            exprSetRGObject = eSRG, 
+            rowSelection = 1:100, 
+            slideNameColumn = "slideNumber", 
+            channels=c("logRatio"), 
+            fileName="normalisedLogRatios.txt", 
+            )
+@ 
+
+
+%%%%%%%%%%%
+\subsection{Further Automation}
+
+The first three steps of the workflow like the
+reading of the image files and the normalisation
+are integrated in the function \Rfunction{processArrayData}.
+Empty spots may be specified and will excluded before
+or after the normalisation step. In our example the 
+function could be called as follows: 
+
+%% eval=FALSE to speed-up computation
+<<processArrayData,echo=TRUE,eval=FALSE,fig=FALSE,results=hide>>=  
+resultList <- processArrayData(slideDescriptionFile=fileName,
+                               fileNameColumn="fileName", 
+                               slideNameColumn="slideNumber", 
+                               loadPath=loadPath, 
+                               savePath=tempdir(),
+                               type="ScanAlyze",
+                               spotIdentifier="SPOT",
+                               spotsRemovedBeforeNormalisation=c("empty",""),  
+                               subtractBackground=TRUE, 
+                               normalisationMethod="vsn", 
+                               plotOutput="pdf"
+                               )
+@ 
+
+
+
+
+%%%%%%%%%%%%%
+
+\subsection{Follow-up analysis}
+
+A simple group comparison is presented as example for a follow-up analysis.
+Genes are selected which differ between the two tumour groups
+and which belong to the top 4000 highest intensities in the
+green channel. The 'difference' is calculated by means of an
+univariate t-test with no correction for multiple testing.
+The intensities of the green channel are ranked by their 
+maximum intensity value to determine the 'highest' ones. 
+A ranking based on the maximum intensity may for example
+exclude genes with low or no expression in all but one 
+condition. The function \Rfunction{myTTest} is shown
+to demonstrate the usage of the generic function 
+\Rfunction{esApply} of the package \Rpackage{Biobase}.
+The \Rfunction{rowttests} is part of the package \Rpackage{genefilter}.
+
+%% possibly use eval=FALSE (here and below)
+<<tTest,echo=TRUE>>=  
+myTTest <- function(x){
+  xs <- split( x, tumortype )
+  result <- t.test( x=xs[[1]], y=xs[[2]], var.equal=TRUE)$p.value  
+  return(result)  
+}
+
+logRatios <- getExprSetLogRatio(eSRG)
+pValues <- esApply(logRatios, 1, myTTest)
+
+factorTumor <- factor(pDataSlide(eSRG)$tumortype)
+pValuesFast <- rowttests(x=exprs(logRatios), fac=factorTumor)$pvalue
+#stopifnot( all.equal.numeric(pValuesFast, pValues) )
+
+sampleIntensities <- exprs(getExprSetGreen(eSRG))
+maxIntensity <- apply(sampleIntensities, 1, max)
+highestOnes <- rank(-maxIntensity) <= 4000
+selectedIndexes <- which( pValues < 0.00001  & highestOnes)
+selectedGenes <- geneNames(logRatios)[selectedIndexes]
+@ 
+
+The selected genes and their p-values are written to a html-file
+named 'result.html'.
+
+%% possibly use eval=FALSE, but no file will be included in the package
+<<writeResult,echo=TRUE>>=
+df <- data.frame(genes=I(selectedGenes),pValues=pValues[selectedIndexes])
+write.htmltable(df, "result", sortby="pValues", decreasing=FALSE)
+@ 
+
+The corresponding log ratios for all samples are visualised
+in form of a 'signature' shown in Figure \ref{signature}.
+
+<<visualiseResult,fig=FALSE,echo=TRUE>>=
+##library(RColorBrewer)
+##dataColours <- brewer.pal(11, name="RdBu")
+dataColours <- c("#67001F", "#B2182B", "#D6604D", "#F4A582", "#FDDBC7", "#F7F7F7", "#D1E5F0", "#92C5DE", "#4393C3", "#2166AC", "#053061")
+sampleColours <- c( "darkgreen", "orange")
+dataMatrix <- exprs(logRatios)[selectedIndexes,]
+ordering <- heatmap(dataMatrix)
+heatmap(dataMatrix[ordering$rowInd,ordering$colInd],col=dataColours,
+        ColSideColors=sampleColours[as.integer(factorTumor[ordering$colInd])],
+	Rowv=NA, Colv=NA, scale="none", main="CLL vs. DLCL") 
+@ 
+<<additionalVisualiseResult,fig=FALSE,echo=FALSE,results=hide>>=
+pdf(file="signature.pdf", width=5, height=5)
+heatmap(dataMatrix[ordering$rowInd,ordering$colInd],col=dataColours,
+        ColSideColors=sampleColours[as.integer(factorTumor[ordering$colInd])],
+	Rowv=NA, Colv=NA, scale="none", main="CLL vs. DLCL") 
+dev.off()
+@ 
+
+
+\begin{figure}[htb]
+\begin{center}  
+  \includegraphics[width=0.8\textwidth]{signature.pdf}
+  \caption{ \label{signature} 
+    Log-ratios of selected genes are visualised in colours
+    ranging from blue to white to red. Each row represents
+    a gene and each column a sample. The tumour types are
+    indicated by green and orange bars on the top of the graphic.
+  }
+ \end{center}
+\end{figure}
+
+
+\section{Details on the classes}
+
+All data are stored in two R classes. The class 
+\Rclass{exprSetRG} offers a convienent way to deal with 
+normalised two colour microarray data. An instance
+of the class stores the normalised data for each channel.
+This offers the possibility to retrieve log-ratios and 
+single channel intensities from the same instance as
+you might need it for filtering and analysis.
+It is an extension of the class \Rclass{exprSet} 
+which is part of the library \Rclass{Biobase}.
+\Rclass{phenoData} or \Rclass{pData} objects defined in
+the library \Rclass{Biobase} can be 
+obtained for each colour separately as well as 
+for each slide, cf. \Rfunction{pDataSlide}.
+Important methods offered by the \Rclass{exprSetRG-class} 
+are \Rfunction{cbind, slideSubset, pDataSlide, getExprSetLogRatios}.
+For more details on the class and its methods call:
+
+<<helpExprSetRG,echo=TRUE,eval=FALSE,results=hide>>=
+help(exprSetRG)
+@  
+
+The class \Rclass{arrayData} is a simple 
+class for all raw data information like foreground and
+background intensities, spot weights, hybridisation
+and spot annotation information.
+Important methods offered by the \Rclass{arrayData-class} 
+are the subset operator \Rfunction{[]} and \Rfunction{cbind}.
+
+
+%%%%%%%%%%%%%
+
+\section{Example application: different microarray layouts}
+
+Occasionally different types of microarrays have been
+used in the same experiment. For example an upgraded
+clone library or changing spotting layouts may result
+in different types of microarrays. 
+If a unique identifier for all spots is 
+supplied with the data files it is possible
+to extract a subset common to all types
+of microarrays. The following lines of code
+demonstrate how one might combine two types
+of microarrays. This mock example makes use
+of the same example data set as before.
+Two times the same data are combined. The
+approach naturally extends to more than
+two types. A separate description file
+is required for each set of microarrays
+belonging to the same type.
+
+
+%% eval=FALSE, to speed-up calculation
+%% required by chunk slideMerge
+<<layout,eval=FALSE,echo=TRUE,results=hide>>=  
+
+SPOTIDENTIFIER <- "SPOT"
+
+rLOne <- processArrayData(
+                          slideDescriptionFile = fileName,
+                          fileNameColumn       = "fileName",
+                          slideNameColumn      = "slideNumber",
+                          loadPath             = loadPath, 
+                          savePath             = tempdir(),
+                          spotIdentifier       = SPOTIDENTIFIER,
+                          type                 = "ScanAlyze",
+                          normalisationMethod  = "none",
+                          plotOutput           = "pdf"
+                          )
+
+rLTwo <- processArrayData(
+                          slideDescriptionFile = fileName,
+                          fileNameColumn       = "fileName",
+                          slideNameColumn      = "slideNumber",
+                          loadPath             = loadPath, 
+                          savePath             = tempdir(),
+                          spotIdentifier       = SPOTIDENTIFIER,
+                          type                 = "ScanAlyze",
+                          normalisationMethod  = "none",
+                          plotOutput           = "pdf"
+                          )
+
+aDOne <- rLOne$arrayDataObject
+aDTwo <- rLTwo$arrayDataObject
+    
+namesOne <- getSpotAttr(aDOne)[,SPOTIDENTIFIER]
+namesTwo <- getSpotAttr(aDTwo)[,SPOTIDENTIFIER]
+
+namesBoth <- intersect(namesOne, namesTwo)
+
+selectionOne <- namesOne %in% namesBoth
+selectionTwo <- namesTwo %in% namesBoth
+
+## assertion
+stopifnot( ! any(duplicated(namesOne[selectionOne])) )
+stopifnot( ! any(duplicated(namesTwo[selectionTwo])) )
+    
+orderOne <- order(namesOne[selectionOne])
+orderTwo <- order(namesTwo[selectionTwo])
+
+aDOne <- aDOne[selectionOne,][orderOne,]
+aDTwo <- aDTwo[selectionTwo,][orderTwo,]
+
+aDBoth <- cbind(aDOne, aDTwo)
+
+oneNrExcluded <- sum( !selectionOne )
+if( oneNrExcluded > 0 ){
+  cat(" excluded ", oneNrExcluded, " items from the first set\n")
+}
+twoNrExcluded <- sum( !selectionTwo )
+if( twoNrExcluded > 0 ){
+  cat(" excluded ", twoNrExcluded, " items from the second set\n")
+}
+
+rL <- processArrayDataObject(
+                             arrayDataObject = aDBoth,
+                             spotIdentifier  = SPOTIDENTIFIER,
+                             normalisationMethod = "vsn",
+                             subtractBackground   = TRUE
+                             )
+    
+
+@ 
+
+\section{Example application: averaging microarrays}
+
+Technical replicates are very common in microarray
+analysis. One might explicitly address such situation
+by means of an ANOVA approach. Another approach
+could involve the averaging of the technical replicates.
+The following example explains how to average
+hybridisations in the framework of \Rpackage{arrayMagic}.
+The mock example above demonstrating the integration
+of different microarray types serves as basis for
+this example.
+Replication on different levels of the experimental
+hierarchy should be treated separately.
+
+%% depends on chunk layout
+%% eval=FALSE to speed-up calculations
+<<slideMerge,eval=FALSE,echo=TRUE>>=  
+
+eSRGTmp <- slideMerge(exprSetRGObject=rL$exprSetRGObject,
+                         slideMergeColumn="slideNumber")
+eSRGMerged <- slideMerge(exprSetRGObject=eSRGTmp,
+                         slideMergeColumn="sampleid")
+@ 
+
+
+%% \usepackage[...]{tocbibind}
+%% \settocbibname{References}
+%% tocbibind is a package for adding extra titles (like the
+%% bibliography, or index, or List of Figures, or ...) 
+%% to the Table of Contents. 
+%% \bibliographystyle{plain}
+
+\addcontentsline{toc}{section}{References}
+\begin{thebibliography}{}
+
+\bibitem{Buness2005}
+Buness~A., Huber~W., Steiner~K., Sueltmann~H., Poustka~A.
+\newblock arrayMagic: two-colour cDNA microarray quality
+  control and preprocessing.
+\newblock \emph{Bioinformatics} 2005~{\bf 21}, 554--556.
+
+\end{thebibliography}
+
+
+
+
+\end{document}
+

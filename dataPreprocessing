@@ -1,0 +1,62 @@
+datenVorverarbeitung <- function(dataDirectory, pattern = "*"){
+  # save current working directory to get there later
+  currentwd = getwd()
+  # change working directory to the dataDirectory passed in the function head
+  setwd(dataDirectory)
+  # save the filenames in a vector can be limited by pattern passed in the function head
+  list = dir(pattern = pattern)
+
+  # iterate over the list of filenames
+  for (j in 1:length(list)){
+    data = read.delim(list[j])
+    # subtract one value of the other (green red)
+    ch1 = data$CH1I - data$CH1B
+    ch2 = data$CH2I - data$CH2B
+
+    # replace le values with the lowest possible values (1)
+    ch1 = replace(ch1, ch1<=0,1)
+    ch2 = replace(ch2, ch2<=0,1)
+
+    M = log2(ch1) - log2(ch2)
+    A = (log2(ch1) + log2(ch2)) / 2
+
+    regressionsGerade = loess(M~A)
+
+    # within array normalisation
+    M2 = M - predict(regressionsGerade, A)
+    # centering
+    M3 = M2 - median(M2)
+    # scaling
+    M4 = M3/mad(M3)
+
+    # comcatenate the vectors
+    if(j == 1){
+      MM = M
+      MM2 = M2
+      MM3 = M3
+      MM4 = M4
+      files = list[j]
+    }
+    else {
+      MM = cbind(MM, M)
+      MM2 = cbind(MM2, M2)
+      MM3 = cbind(MM3, M3)
+      MM4 = cbind(MM4, M4)
+      files = cbind(files, list[j])
+    }
+  }
+
+  # plotting the vectors
+  par(mfrow=c(1,4))
+  colnames(MM) = files
+  boxplot(data.frame(MM), main="before \"Within Array Normalisation\"", las=1, ylim=c(-15,15))
+  colnames(MM2) = files
+  boxplot(data.frame(MM2), main="after \"Within Array normalisation\"", las=1, ylim=c(-15,15))
+  colnames(MM3) = files
+  boxplot(data.frame(MM3), main="after \"Centering\"", las=1, ylim=c(-15,15))
+  colnames(MM4) = files
+  boxplot(data.frame(MM4), main="after \"Scaling\"", las=1, ylim=c(-15,15))
+
+  # set cuttent working directory back to the previous state
+  setwd(currentwd)
+}

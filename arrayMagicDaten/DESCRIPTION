@@ -1,0 +1,15 @@
+Package: arrayMagic
+Title: two-colour cDNA array quality control and preprocessing
+Version: 1.16.1
+Date: 22 Aug 2005
+Author: Andreas Buness and Wolfgang Huber
+Description: A collection of utilities for quality control and
+        processing of two-colour cDNA microarray data
+URL: http://www.dkfz-heidelberg.de/abt0840/home/buness/WWW/Software/arrayMagic/
+Maintainer: Andreas Buness <STARTa.buness@gmx.deEND>
+License: BSD; read file BSD.license
+Depends: R (>= 2.1.0), methods, utils, Biobase, vsn (>= 1.4.10), limma (>= 1.7.6), genefilter
+        (>= 1.5.2)
+biocViews: Microarray,TwoChannel,DataImport,QualityControl,Preprocessing
+LazyLoad: yes
+Packaged: Sat Nov 17 14:06:06 2007; biocbuild
