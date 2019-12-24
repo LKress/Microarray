@@ -1,7 +1,7 @@
 # Microarray
 
 ## Preprocessing Data
-try out the function in R:
+try out the function "dataPreprocessing" in R:
 
 ```> source("dataPreprocessing")```
 
