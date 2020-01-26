@@ -1,4 +1,4 @@
-# R Cheatsheat
+# R Cheatsheet
 
 ## Funktionen auf dem System
 
