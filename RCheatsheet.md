@@ -2,13 +2,13 @@
 
 ## Funktionen auf dem System
 
-getwd()
+getwd() --> print working directory
 
-setwd()
+setwd() --> working directory ändern
 
 dir() --> ordner/dateien im aktuellen system
 
-savehistory()
+savehistory() --> speichert die history im aktuellen verzeichnis, falls nicht anders angegeben
 
 ls() --> vergebene Variablen
 
@@ -22,11 +22,11 @@ example()
 
 ### Array Initialisierung
 
-x = 1:10
+x = 1:10 --> array mit Werten 1 bis 10
 
-assign("x", 1:10)
+assign("x", 1:10) --> array mit Werten 1 bis 10
 
-x <- c(2,4,6,2,1,5,7,9,4,2)
+x <- c(2,4,6,2,1,5,7,9,4,2) --> array mit fest definierten Werten
 
 ### Dimensionsfunktionen
 
