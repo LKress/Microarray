@@ -30,9 +30,9 @@ x <- c(2,4,6,2,1,5,7,9,4,2) --> array mit fest definierten Werten
 
 ### Dimensionsfunktionen
 
-dim(x)
+dim(x) --> gibt dimension eines 2 dimensionalen Arrays zurueck
 
-length(x)
+length(x) --> gibt die laenge eines arrays zurueck
 
 mode(x) --> datentyp von x
 
